@@ -274,8 +274,8 @@ Return ~
                       `MiniStatusline.section_lsp`({args})
 Section for attached LSP servers
 
-Shows number of LSP servers (each as separate "+" character) attached to
-current buffer or nothing if none is attached.
+Shows names of LSP servers attached to current buffer, separated by commas,
+or nothing if none is attached.
 Nothing is shown if window width is lower than `args.trunc_width`.
 
 Parameters ~
