@@ -674,17 +674,9 @@ H.compute_attached_lsp = function(buf_id)
 	local clients = H.get_buf_lsp_clients(buf_id)
 	local names = {}
 
-	if vim.tbl_islist(clients) then
-		for _, client in ipairs(clients) do
-			if type(client) == "table" and type(client.name) == "string" and client.name ~= "" then
-				table.insert(names, client.name)
-			end
-		end
-	else
-		for _, client in pairs(clients) do
-			if type(client) == "table" and type(client.name) == "string" and client.name ~= "" then
-				table.insert(names, client.name)
-			end
+	for _, client in pairs(clients) do
+		if type(client) == "table" and type(client.name) == "string" and client.name ~= "" then
+			table.insert(names, client.name)
 		end
 	end
 
