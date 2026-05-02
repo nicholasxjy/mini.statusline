@@ -147,6 +147,9 @@ Stable branch:
 
   -- Whether to use icons by default
   use_icons = true,
+
+  -- Whether to show diagnostics from all buffers instead of current buffer
+  show_workspace_diagnostics = false,
 }
 ```
 
