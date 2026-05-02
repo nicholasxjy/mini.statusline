@@ -172,6 +172,9 @@ MiniStatusline.config = {
 
 	-- Whether to use icons by default
 	use_icons = true,
+
+	-- Whether to show diagnostics from all buffers instead of current buffer
+	show_workspace_diagnostics = false,
 }
 --minidoc_afterlines_end
 
@@ -335,7 +338,9 @@ end
 ---
 --- Shows nothing if diagnostics is disabled, no diagnostic is set, or for short
 --- output. Otherwise uses |vim.diagnostic.get()| to compute and show number of
---- errors ('E'), warnings ('W'), information ('I'), and hints ('H').
+--- errors ('E'), warnings ('W'), information ('I'), and hints ('H'). When
+--- `config.show_workspace_diagnostics` is `true`, count diagnostics from all
+--- buffers instead of only current buffer.
 ---
 --- Short output is returned if window width is lower than `args.trunc_width`.
 ---
@@ -352,7 +357,8 @@ MiniStatusline.section_diagnostics = function(args)
 
 	-- Construct string parts. NOTE: call `diagnostic_is_disabled()` *after*
 	-- check for present `count` to not source `vim.diagnostic` on startup.
-	local count = H.diagnostic_counts[vim.api.nvim_get_current_buf()]
+	local count = H.get_config().show_workspace_diagnostics and H.get_workspace_diagnostic_count()
+		or H.diagnostic_counts[vim.api.nvim_get_current_buf()]
 	if count == nil or H.diagnostic_is_disabled() then
 		return ""
 	end
@@ -542,6 +548,7 @@ H.setup_config = function(config)
 	H.check_type("content.inactive", config.content.inactive, "function", true)
 
 	H.check_type("use_icons", config.use_icons, "boolean")
+	H.check_type("show_workspace_diagnostics", config.show_workspace_diagnostics, "boolean")
 
 	return config
 end
@@ -700,6 +707,10 @@ end
 H.get_diagnostic_count = function(buf_id)
 	return vim.diagnostic.count(buf_id)
 end
+
+H.get_workspace_diagnostic_count = function()
+	return vim.diagnostic.count(nil)
+end
 if vim.fn.has("nvim-0.10") == 0 then
 	H.get_diagnostic_count = function(buf_id)
 		local res = {}
@@ -707,6 +718,10 @@ if vim.fn.has("nvim-0.10") == 0 then
 			res[d.severity] = (res[d.severity] or 0) + 1
 		end
 		return res
+	end
+
+	H.get_workspace_diagnostic_count = function()
+		return H.get_diagnostic_count(nil)
 	end
 end
 

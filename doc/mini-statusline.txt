@@ -146,6 +146,9 @@ Defaults ~
 
     -- Whether to use icons by default
     use_icons = true,
+
+    -- Whether to show diagnostics from all buffers instead of current buffer
+    show_workspace_diagnostics = false,
   }
 <
 ------------------------------------------------------------------------------
@@ -256,7 +259,9 @@ Section for Neovim's builtin diagnostics
 
 Shows nothing if diagnostics is disabled, no diagnostic is set, or for short
 output. Otherwise uses |vim.diagnostic.get()| to compute and show number of
-errors ('E'), warnings ('W'), information ('I'), and hints ('H').
+errors ('E'), warnings ('W'), information ('I'), and hints ('H'). When
+`config.show_workspace_diagnostics` is `true`, count diagnostics from all
+buffers instead of only current buffer.
 
 Short output is returned if window width is lower than `args.trunc_width`.
 
