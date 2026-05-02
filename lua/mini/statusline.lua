@@ -58,6 +58,10 @@
 ---   (|MiniStatusline.section_git()| and |MiniStatusline.section_diagnostics()|).
 --- - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
 --- - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
+--- - `MiniStatuslineLspProgress` - for active LSP progress inside
+---   |MiniStatusline.section_lsp()|.
+--- - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
+---   inside |MiniStatusline.section_lsp()|.
 ---
 --- Other groups:
 --- - `MiniStatuslineInactive` - highlighting in not focused window.
@@ -382,8 +386,9 @@ end
 
 --- Section for attached LSP servers
 ---
---- Shows names of LSP servers attached to current buffer, separated by commas,
---- or nothing if none is attached.
+--- Shows names of LSP servers attached to current buffer, separated by commas.
+--- If there is ongoing LSP work progress from a client attached to current
+--- buffer, append its compact status with dedicated highlighting.
 --- Nothing is shown if window width is lower than `args.trunc_width`.
 ---
 ---@param args __statusline_args Use `args.icon` to supply your own icon.
@@ -394,14 +399,30 @@ MiniStatusline.section_lsp = function(args)
 		return ""
 	end
 
-	local attached = H.attached_lsp[vim.api.nvim_get_current_buf()] or ""
-	if attached == "" then
+	local buf_id = vim.api.nvim_get_current_buf()
+	local attached = H.attached_lsp[buf_id] or ""
+	local progress, progress_hl, progress_client = H.get_lsp_progress(buf_id)
+	if attached == "" and progress == "" then
 		return ""
 	end
 
 	local use_icons = H.use_icons or H.get_config().use_icons
 	local icon = args.icon or (use_icons and "󰰎" or "LSP")
-	return icon .. " " .. attached
+	local progress_part = ""
+	if progress ~= "" then
+		progress_part = string.format(" %%#%s#%s%%#MiniStatuslineDevinfo#", progress_hl or "MiniStatuslineLspProgress", progress)
+	end
+
+	local name = attached
+	if progress ~= "" and type(progress_client) == "string" and progress_client ~= "" then
+		name = progress_client
+	end
+
+	if name == "" then
+		return icon .. progress_part
+	end
+
+	return string.format("%s %s%s", icon, name, progress_part)
 end
 
 --- Section for file name
@@ -537,6 +558,12 @@ H.diagnostic_counts = {}
 -- String representation of attached LSP clients per buffer id
 H.attached_lsp = {}
 
+-- Active LSP progress per client id and progress token
+H.lsp_progress = {}
+
+-- Timer used to animate LSP progress spinner
+H.lsp_progress_timer = nil
+
 -- Helper functionality =======================================================
 -- Settings -------------------------------------------------------------------
 H.setup_config = function(config)
@@ -571,9 +598,20 @@ H.create_autocommands = function()
 	-- Use `schedule_wrap()` because at `LspDetach` server is still present
 	local track_lsp = vim.schedule_wrap(function(data)
 		H.attached_lsp[data.buf] = vim.api.nvim_buf_is_valid(data.buf) and H.compute_attached_lsp(data.buf) or nil
+		H.prune_lsp_progress()
+		H.refresh_lsp_progress_timer()
 		vim.cmd("redrawstatus")
 	end)
 	au({ "LspAttach", "LspDetach" }, "*", track_lsp, "Track LSP clients")
+
+	if vim.fn.has("nvim-0.10") == 1 then
+		local track_lsp_progress = vim.schedule_wrap(function(data)
+			H.update_lsp_progress(data.data)
+			H.refresh_lsp_progress_timer()
+			vim.cmd("redrawstatus")
+		end)
+		au("LspProgress", "*", track_lsp_progress, "Track LSP progress")
+	end
 
 	-- Use `schedule_wrap()` because `redrawstatus` might error on `:bwipeout`
 	-- See: https://github.com/neovim/neovim/issues/32349
@@ -600,10 +638,12 @@ H.create_default_hl = function()
   set_default_hl('MiniStatuslineModeCommand', { link = 'DiffText' })
   set_default_hl('MiniStatuslineModeOther',   { link = 'IncSearch' })
 
-  set_default_hl('MiniStatuslineDevinfo',  { link = 'StatusLine' })
-  set_default_hl('MiniStatuslineFilename', { link = 'StatusLineNC' })
-  set_default_hl('MiniStatuslineFileinfo', { link = 'StatusLine' })
-  set_default_hl('MiniStatuslineInactive', { link = 'StatusLineNC' })
+  set_default_hl('MiniStatuslineDevinfo',         { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineFilename',        { link = 'StatusLineNC' })
+  set_default_hl('MiniStatuslineFileinfo',        { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineLspProgress',     { link = 'DiagnosticInfo' })
+  set_default_hl('MiniStatuslineLspProgressDone', { link = 'DiffAdd' })
+  set_default_hl('MiniStatuslineInactive',        { link = 'StatusLineNC' })
 end
 
 H.is_disabled = function()
@@ -694,12 +734,244 @@ end
 H.get_buf_lsp_clients = function(buf_id)
 	return vim.lsp.get_clients({ bufnr = buf_id })
 end
+
+H.lsp_progress_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+H.lsp_progress_done_ms = 1000
+
+H.get_lsp_progress_spinner = function()
+	local frame = math.floor(vim.loop.hrtime() / 1e8) % #H.lsp_progress_frames + 1
+	return H.lsp_progress_frames[frame]
+end
+
+H.get_time_ms = function()
+	return vim.uv and vim.uv.now() or vim.loop.now()
+end
+
+H.shorten_lsp_progress_text = function(text, max_width)
+	text = vim.trim((text or ""):gsub("%s+", " "))
+	if text == "" then
+		return ""
+	end
+
+	max_width = max_width or 24
+	if vim.fn.strdisplaywidth(text) <= max_width then
+		return text
+	end
+
+	local width, chars = 0, {}
+	for _, ch in ipairs(vim.fn.split(text, "\\zs")) do
+		local ch_width = vim.fn.strdisplaywidth(ch)
+		if width + ch_width > max_width - 1 then
+			break
+		end
+		table.insert(chars, ch)
+		width = width + ch_width
+	end
+
+	return table.concat(chars, "") .. "…"
+end
+
+H.format_lsp_progress = function(text, percentage, is_done)
+	text = H.shorten_lsp_progress_text(text)
+	if is_done then
+		if text ~= "" then
+			return " " .. text
+		end
+		return type(percentage) == "number" and string.format(" %d%%%%", percentage) or " Done"
+	end
+
+	local spinner = H.get_lsp_progress_spinner()
+	if type(percentage) == "number" then
+		return string.format("%s %d%%%%", spinner, percentage)
+	end
+	if text == "" then
+		return spinner
+	end
+
+	return string.format("%s %s", spinner, text)
+end
+
+H.prune_lsp_progress = function()
+	local now = H.get_time_ms()
+
+	for client_id, tokens in pairs(H.lsp_progress) do
+		for token, entry in pairs(tokens) do
+			if entry.kind == "end" and type(entry.done_at) == "number" and now - entry.done_at > H.lsp_progress_done_ms then
+				tokens[token] = nil
+			end
+		end
+
+		if vim.tbl_isempty(tokens) then
+			H.lsp_progress[client_id] = nil
+		end
+	end
+end
+
+H.has_active_lsp_progress = function()
+	H.prune_lsp_progress()
+
+	for _, tokens in pairs(H.lsp_progress) do
+		for _, entry in pairs(tokens) do
+			if entry.kind ~= "end" then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+H.refresh_lsp_progress_timer = function()
+	if vim.fn.has("nvim-0.10") == 0 then
+		return
+	end
+
+	local uv = vim.uv or vim.loop
+	if H.has_active_lsp_progress() then
+		if H.lsp_progress_timer == nil then
+			H.lsp_progress_timer = uv.new_timer()
+		end
+		if not H.lsp_progress_timer:is_active() then
+			H.lsp_progress_timer:start(
+				0,
+				80,
+				vim.schedule_wrap(function()
+					H.prune_lsp_progress()
+					if not H.has_active_lsp_progress() then
+						H.refresh_lsp_progress_timer()
+						vim.cmd("redrawstatus")
+						return
+					end
+					vim.cmd("redrawstatus")
+				end)
+			)
+		end
+		return
+	end
+
+	if H.lsp_progress_timer ~= nil and H.lsp_progress_timer:is_active() then
+		H.lsp_progress_timer:stop()
+	end
+end
+
+H.update_lsp_progress = function(data)
+	if type(data) ~= "table" or type(data.client_id) ~= "number" then
+		return
+	end
+
+	local params = type(data.params) == "table" and data.params or {}
+	local value = type(params.value) == "table" and params.value or {}
+	local token = params.token
+	if token == nil then
+		return
+	end
+
+	local client_tokens = H.lsp_progress[data.client_id] or {}
+	local entry = client_tokens[token] or {}
+	entry.kind = value.kind
+	entry.title = type(value.title) == "string" and value.title or entry.title or ""
+	entry.message = type(value.message) == "string" and value.message or entry.message or ""
+	entry.percentage = type(value.percentage) == "number" and math.floor(value.percentage + 0.5) or entry.percentage
+	entry.updated_at = H.get_time_ms()
+
+	if entry.kind == "end" then
+		entry.done_at = entry.updated_at
+		entry.percentage = entry.percentage or 100
+	else
+		entry.done_at = nil
+	end
+
+	client_tokens[token] = entry
+	H.lsp_progress[data.client_id] = client_tokens
+	H.prune_lsp_progress()
+end
+
+H.choose_lsp_progress_entry = function(buf_id)
+	H.prune_lsp_progress()
+
+	local best_active, best_done
+	for _, client in pairs(H.get_buf_lsp_clients(buf_id)) do
+		local tokens = H.lsp_progress[client.id] or {}
+		for _, entry in pairs(tokens) do
+			local candidate = { client_name = client.name or "", entry = entry }
+			if entry.kind == "end" then
+				if best_done == nil or (entry.done_at or 0) > (best_done.entry.done_at or 0) then
+					best_done = candidate
+				end
+			else
+				if best_active == nil or (entry.updated_at or 0) > (best_active.entry.updated_at or 0) then
+					best_active = candidate
+				end
+			end
+		end
+	end
+
+	return best_active or best_done
+end
+
+H.get_lsp_progress_text = function(entry, client_name)
+	local parts = vim.tbl_filter(function(x)
+		return type(x) == "string" and x ~= ""
+	end, { entry.title, entry.message })
+	if not vim.tbl_isempty(parts) then
+		return table.concat(parts, ": ")
+	end
+
+	return client_name or ""
+end
+
+H.get_lsp_progress = function(buf_id)
+	local candidate = H.choose_lsp_progress_entry(buf_id)
+	if candidate == nil then
+		return "", nil, nil
+	end
+
+	local entry = candidate.entry
+	local text = H.get_lsp_progress_text(entry, candidate.client_name)
+	local hl = entry.kind == "end" and "MiniStatuslineLspProgressDone" or "MiniStatuslineLspProgress"
+	return H.format_lsp_progress(text, entry.percentage, entry.kind == "end"), hl, candidate.client_name
+end
+
 -- NOTE: Use `has('nvim-0.xx')` instead of directly checking presence of target
 -- function to avoid loading `vim.xxx` modules at `require('mini.statusline')`.
 -- This visibly improves startup time.
 if vim.fn.has("nvim-0.10") == 0 then
 	H.get_buf_lsp_clients = function(buf_id)
 		return vim.lsp.buf_get_clients(buf_id)
+	end
+
+	H.get_lsp_progress = function(buf_id)
+		local ok, messages = pcall(vim.lsp.util.get_progress_messages)
+		if not ok or type(messages) ~= "table" or vim.tbl_isempty(messages) then
+			return "", nil, nil
+		end
+
+		local attached_names = {}
+		for _, client in pairs(H.get_buf_lsp_clients(buf_id)) do
+			if type(client.name) == "string" and client.name ~= "" then
+				attached_names[client.name] = true
+			end
+		end
+
+		local percentage, text, client_name
+		for _, msg in ipairs(messages) do
+			if attached_names[msg.name or ""] then
+				client_name = msg.name or client_name
+				if type(msg.percentage) == "number" then
+					percentage = math.max(percentage or 0, msg.percentage)
+				end
+
+				if text == nil or text == "" then
+					text = msg.title or msg.message or msg.name or ""
+				end
+			end
+		end
+
+		if percentage == nil and (text == nil or text == "") then
+			return "", nil, nil
+		end
+
+		return H.format_lsp_progress(text, percentage, false), "MiniStatuslineLspProgress", client_name
 	end
 end
 
