@@ -148,6 +148,12 @@ Stable branch:
   -- Whether to use icons by default
   use_icons = true,
 
+  -- Git section defaults
+  git = {
+    -- Icon used before Git summary. If `nil`, no icon is shown.
+    icon = nil,
+  },
+
   -- Diff section defaults
   diff = {
     -- Icon used before diff summary
@@ -162,7 +168,7 @@ Stable branch:
 
   -- Diagnostics section defaults
   diagnostics = {
-    -- Icon used before diagnostics summary
+    -- Icon used before diagnostics summary. If `nil`, no icon is shown.
     icon = nil,
     -- Signs shown for each severity level
     signs = {
