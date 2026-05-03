@@ -57,9 +57,22 @@ Highlight depending on mode (second |MiniStatusline.section_mode()| output):
 
 Highlight used in default statusline:
 - `MiniStatuslineDevinfo` - for "dev info" group
-  (|MiniStatusline.section_git()| and |MiniStatusline.section_diagnostics()|).
+  (|MiniStatusline.section_git()| and default
+  |MiniStatusline.section_diagnostics()| output).
 - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
 - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
+- `MiniStatuslineLspProgress` - for active LSP progress inside
+  |MiniStatusline.section_lsp()|.
+- `MiniStatuslineLspProgressDone` - for recently completed LSP progress
+  inside |MiniStatusline.section_lsp()|.
+- `MiniStatuslineDiagnosticError` - for error diagnostics inside
+  |MiniStatusline.section_diagnostics()|.
+- `MiniStatuslineDiagnosticWarn` - for warning diagnostics inside
+  |MiniStatusline.section_diagnostics()|.
+- `MiniStatuslineDiagnosticInfo` - for info diagnostics inside
+  |MiniStatusline.section_diagnostics()|.
+- `MiniStatuslineDiagnosticHint` - for hint diagnostics inside
+  |MiniStatusline.section_diagnostics()|.
 
 Other groups:
 - `MiniStatuslineInactive` - highlighting in not focused window.
@@ -146,6 +159,35 @@ Defaults ~
 
     -- Whether to use icons by default
     use_icons = true,
+
+    -- Diagnostics section defaults
+    diagnostics = {
+      -- Icon used before diagnostics summary
+      icon = nil,
+      -- Signs shown for each severity level
+      signs = {
+        ERROR = 'E',
+        WARN = 'W',
+        INFO = 'I',
+        HINT = 'H',
+      },
+    },
+
+    -- Highlight groups used by default content and built-in sections
+    highlight_groups = {
+      devinfo = 'MiniStatuslineDevinfo',
+      filename = 'MiniStatuslineFilename',
+      fileinfo = 'MiniStatuslineFileinfo',
+      inactive = 'MiniStatuslineInactive',
+      lsp_progress = 'MiniStatuslineLspProgress',
+      lsp_progress_done = 'MiniStatuslineLspProgressDone',
+      diagnostics = {
+        ERROR = 'MiniStatuslineDiagnosticError',
+        WARN = 'MiniStatuslineDiagnosticWarn',
+        INFO = 'MiniStatuslineDiagnosticInfo',
+        HINT = 'MiniStatuslineDiagnosticHint',
+      },
+    },
 
     -- Whether to show diagnostics from all buffers instead of current buffer
     show_workspace_diagnostics = false,
@@ -271,6 +313,13 @@ Parameters ~
 
   { ERROR = '!', WARN = '?', INFO = '@', HINT = '*' }
 <
+  Use `args.highlights` to use custom highlight groups per severity level
+  name. For example: >lua
+
+  { ERROR = 'ErrorMsg', WARN = 'WarningMsg' }
+<
+  Use `args.reset_highlight` to restore statusline highlighting after each
+  highlighted diagnostic entry.
 Return ~
 `(string)` Section string.
 

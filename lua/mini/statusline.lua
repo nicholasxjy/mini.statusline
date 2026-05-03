@@ -55,13 +55,22 @@
 ---
 --- Highlight used in default statusline:
 --- - `MiniStatuslineDevinfo` - for "dev info" group
----   (|MiniStatusline.section_git()| and |MiniStatusline.section_diagnostics()|).
+---   (|MiniStatusline.section_git()| and default |MiniStatusline.section_diagnostics()|
+---   output).
 --- - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
 --- - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
 --- - `MiniStatuslineLspProgress` - for active LSP progress inside
 ---   |MiniStatusline.section_lsp()|.
 --- - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
 ---   inside |MiniStatusline.section_lsp()|.
+--- - `MiniStatuslineDiagnosticError` - for error diagnostics inside
+---   |MiniStatusline.section_diagnostics()|.
+--- - `MiniStatuslineDiagnosticWarn` - for warning diagnostics inside
+---   |MiniStatusline.section_diagnostics()|.
+--- - `MiniStatuslineDiagnosticInfo` - for info diagnostics inside
+---   |MiniStatusline.section_diagnostics()|.
+--- - `MiniStatuslineDiagnosticHint` - for hint diagnostics inside
+---   |MiniStatusline.section_diagnostics()|.
 ---
 --- Other groups:
 --- - `MiniStatuslineInactive` - highlighting in not focused window.
@@ -176,6 +185,35 @@ MiniStatusline.config = {
 
 	-- Whether to use icons by default
 	use_icons = true,
+
+	-- Diagnostics section defaults
+	diagnostics = {
+		-- Icon used before diagnostics summary
+		icon = nil,
+		-- Signs shown for each severity level
+		signs = {
+			ERROR = "E",
+			WARN = "W",
+			INFO = "I",
+			HINT = "H",
+		},
+	},
+
+	-- Highlight groups used by default content and built-in sections
+	highlight_groups = {
+		devinfo = "MiniStatuslineDevinfo",
+		filename = "MiniStatuslineFilename",
+		fileinfo = "MiniStatuslineFileinfo",
+		inactive = "MiniStatuslineInactive",
+		lsp_progress = "MiniStatuslineLspProgress",
+		lsp_progress_done = "MiniStatuslineLspProgressDone",
+		diagnostics = {
+			ERROR = "MiniStatuslineDiagnosticError",
+			WARN = "MiniStatuslineDiagnosticWarn",
+			INFO = "MiniStatuslineDiagnosticInfo",
+			HINT = "MiniStatuslineDiagnosticHint",
+		},
+	},
 
 	-- Whether to show diagnostics from all buffers instead of current buffer
 	show_workspace_diagnostics = false,
@@ -353,34 +391,54 @@ end
 ---
 ---   { ERROR = '!', WARN = '?', INFO = '@', HINT = '*' }
 --- <
+---   Use `args.highlights` to use custom highlight groups per severity level
+---   name. For example: >lua
+---
+---   { ERROR = 'ErrorMsg', WARN = 'WarningMsg' }
+--- <
+---   Use `args.reset_highlight` to restore statusline highlighting after each
+---   highlighted diagnostic entry.
 ---@return __statusline_section
 MiniStatusline.section_diagnostics = function(args)
+	args = args or {}
 	if MiniStatusline.is_truncated(args.trunc_width) then
 		return ""
 	end
 
+	local config = H.get_config()
+	local signs = vim.tbl_deep_extend("force", vim.deepcopy(config.diagnostics.signs), args.signs or {})
+	local highlights =
+		vim.tbl_deep_extend("force", vim.deepcopy(config.highlight_groups.diagnostics), args.highlights or {})
+	local reset_highlight = args.reset_highlight or config.highlight_groups.devinfo
+
 	-- Construct string parts. NOTE: call `diagnostic_is_disabled()` *after*
 	-- check for present `count` to not source `vim.diagnostic` on startup.
-	local count = H.get_config().show_workspace_diagnostics and H.get_workspace_diagnostic_count()
+	local count = config.show_workspace_diagnostics and H.get_workspace_diagnostic_count()
 		or H.diagnostic_counts[vim.api.nvim_get_current_buf()]
 	if count == nil or H.diagnostic_is_disabled() then
 		return ""
 	end
 
-	local severity, signs, t = vim.diagnostic.severity, args.signs or {}, {}
+	local severity, t = vim.diagnostic.severity, {}
 	for _, level in ipairs(H.diagnostic_levels) do
 		local n = count[severity[level.name]] or 0
 		-- Add level info only if diagnostic is present
 		if n > 0 then
-			table.insert(t, " " .. (signs[level.name] or level.sign) .. n)
+			local sign = signs[level.name]
+			local hl = highlights[level.name]
+			if type(hl) == "string" and hl ~= "" then
+				table.insert(t, string.format(" %%#%s#%s%d%%#%s#", hl, sign, n, reset_highlight))
+			else
+				table.insert(t, " " .. sign .. n)
+			end
 		end
 	end
 	if #t == 0 then
 		return ""
 	end
 
-	local use_icons = H.use_icons or H.get_config().use_icons
-	local icon = args.icon or (use_icons and "" or "Diag")
+	local use_icons = H.use_icons or config.use_icons
+	local icon = args.icon or config.diagnostics.icon or (use_icons and "" or "Diag")
 	return icon .. table.concat(t, "")
 end
 
@@ -410,7 +468,9 @@ MiniStatusline.section_lsp = function(args)
 	local icon = args.icon or (use_icons and "󰰎" or "LSP")
 	local progress_part = ""
 	if progress ~= "" then
-		progress_part = string.format(" %%#%s#%s%%#MiniStatuslineDevinfo#", progress_hl or "MiniStatuslineLspProgress", progress)
+		local hl_groups = H.get_config().highlight_groups
+		progress_part =
+			string.format(" %%#%s#%s%%#%s#", progress_hl or hl_groups.lsp_progress, progress, hl_groups.devinfo)
 	end
 
 	local name = attached
@@ -546,10 +606,10 @@ H.default_config = vim.deepcopy(MiniStatusline.config)
 
 -- Showed diagnostic levels
 H.diagnostic_levels = {
-	{ name = "ERROR", sign = "E" },
-	{ name = "WARN", sign = "W" },
-	{ name = "INFO", sign = "I" },
-	{ name = "HINT", sign = "H" },
+	{ name = "ERROR" },
+	{ name = "WARN" },
+	{ name = "INFO" },
+	{ name = "HINT" },
 }
 
 -- Diagnostic counts per buffer id
@@ -575,6 +635,19 @@ H.setup_config = function(config)
 	H.check_type("content.inactive", config.content.inactive, "function", true)
 
 	H.check_type("use_icons", config.use_icons, "boolean")
+	H.check_type("diagnostics", config.diagnostics, "table")
+	H.check_type("diagnostics.icon", config.diagnostics.icon, "string", true)
+	H.check_type("diagnostics.signs", config.diagnostics.signs, "table")
+	H.check_severity_map("diagnostics.signs", config.diagnostics.signs)
+	H.check_type("highlight_groups", config.highlight_groups, "table")
+	H.check_type("highlight_groups.devinfo", config.highlight_groups.devinfo, "string")
+	H.check_type("highlight_groups.filename", config.highlight_groups.filename, "string")
+	H.check_type("highlight_groups.fileinfo", config.highlight_groups.fileinfo, "string")
+	H.check_type("highlight_groups.inactive", config.highlight_groups.inactive, "string")
+	H.check_type("highlight_groups.lsp_progress", config.highlight_groups.lsp_progress, "string")
+	H.check_type("highlight_groups.lsp_progress_done", config.highlight_groups.lsp_progress_done, "string")
+	H.check_type("highlight_groups.diagnostics", config.highlight_groups.diagnostics, "table")
+	H.check_severity_map("highlight_groups.diagnostics", config.highlight_groups.diagnostics)
 	H.check_type("show_workspace_diagnostics", config.show_workspace_diagnostics, "boolean")
 
 	return config
@@ -631,18 +704,22 @@ H.create_default_hl = function()
     vim.api.nvim_set_hl(0, name, data)
   end
 
-  set_default_hl('MiniStatuslineModeNormal',  { link = 'Cursor' })
-  set_default_hl('MiniStatuslineModeInsert',  { link = 'DiffChange' })
-  set_default_hl('MiniStatuslineModeVisual',  { link = 'DiffAdd' })
-  set_default_hl('MiniStatuslineModeReplace', { link = 'DiffDelete' })
-  set_default_hl('MiniStatuslineModeCommand', { link = 'DiffText' })
-  set_default_hl('MiniStatuslineModeOther',   { link = 'IncSearch' })
+  set_default_hl('MiniStatuslineModeNormal',     { link = 'Cursor' })
+  set_default_hl('MiniStatuslineModeInsert',     { link = 'DiffChange' })
+  set_default_hl('MiniStatuslineModeVisual',     { link = 'DiffAdd' })
+  set_default_hl('MiniStatuslineModeReplace',    { link = 'DiffDelete' })
+  set_default_hl('MiniStatuslineModeCommand',    { link = 'DiffText' })
+  set_default_hl('MiniStatuslineModeOther',      { link = 'IncSearch' })
 
   set_default_hl('MiniStatuslineDevinfo',         { link = 'StatusLine' })
   set_default_hl('MiniStatuslineFilename',        { link = 'StatusLineNC' })
   set_default_hl('MiniStatuslineFileinfo',        { link = 'StatusLine' })
   set_default_hl('MiniStatuslineLspProgress',     { link = 'DiagnosticInfo' })
   set_default_hl('MiniStatuslineLspProgressDone', { link = 'DiffAdd' })
+  set_default_hl('MiniStatuslineDiagnosticError', { link = 'DiagnosticError' })
+  set_default_hl('MiniStatuslineDiagnosticWarn',  { link = 'DiagnosticWarn' })
+  set_default_hl('MiniStatuslineDiagnosticInfo',  { link = 'DiagnosticInfo' })
+  set_default_hl('MiniStatuslineDiagnosticHint',  { link = 'DiagnosticHint' })
   set_default_hl('MiniStatuslineInactive',        { link = 'StatusLineNC' })
 end
 
@@ -686,11 +763,12 @@ H.modes = setmetatable({
 -- Default content ------------------------------------------------------------
 --stylua: ignore
 H.default_content_active = function()
+  local hl_groups = H.get_config().highlight_groups
   H.use_icons = H.get_config().use_icons
   local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
   local git           = MiniStatusline.section_git({ trunc_width = 40 })
   local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
-  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75 })
+  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75, reset_highlight = hl_groups.devinfo })
   local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
   local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
   local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
@@ -702,18 +780,18 @@ H.default_content_active = function()
   -- correct padding with spaces between groups (accounts for 'missing'
   -- sections, etc.)
   return MiniStatusline.combine_groups({
-    { hl = mode_hl,                  strings = { mode } },
-    { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+    { hl = mode_hl,             strings = { mode } },
+    { hl = hl_groups.devinfo,   strings = { git, diff, diagnostics, lsp } },
     '%<', -- Mark general truncate point
-    { hl = 'MiniStatuslineFilename', strings = { filename } },
+    { hl = hl_groups.filename,  strings = { filename } },
     '%=', -- End left alignment
-    { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
-    { hl = mode_hl,                  strings = { search, location } },
+    { hl = hl_groups.fileinfo,  strings = { fileinfo } },
+    { hl = mode_hl,             strings = { search, location } },
   })
 end
 
 H.default_content_inactive = function()
-	return "%#MiniStatuslineInactive#%F%="
+	return string.format("%%#%s#%%F%%=", H.get_config().highlight_groups.inactive)
 end
 
 -- LSP ------------------------------------------------------------------------
@@ -796,7 +874,11 @@ H.prune_lsp_progress = function()
 
 	for client_id, tokens in pairs(H.lsp_progress) do
 		for token, entry in pairs(tokens) do
-			if entry.kind == "end" and type(entry.done_at) == "number" and now - entry.done_at > H.lsp_progress_done_ms then
+			if
+				entry.kind == "end"
+				and type(entry.done_at) == "number"
+				and now - entry.done_at > H.lsp_progress_done_ms
+			then
 				tokens[token] = nil
 			end
 		end
@@ -928,7 +1010,8 @@ H.get_lsp_progress = function(buf_id)
 
 	local entry = candidate.entry
 	local text = H.get_lsp_progress_text(entry, candidate.client_name)
-	local hl = entry.kind == "end" and "MiniStatuslineLspProgressDone" or "MiniStatuslineLspProgress"
+	local hl_groups = H.get_config().highlight_groups
+	local hl = entry.kind == "end" and hl_groups.lsp_progress_done or hl_groups.lsp_progress
 	return H.format_lsp_progress(text, entry.percentage, entry.kind == "end"), hl, candidate.client_name
 end
 
@@ -971,7 +1054,7 @@ if vim.fn.has("nvim-0.10") == 0 then
 			return "", nil, nil
 		end
 
-		return H.format_lsp_progress(text, percentage, false), "MiniStatuslineLspProgress", client_name
+		return H.format_lsp_progress(text, percentage, false), H.get_config().highlight_groups.lsp_progress, client_name
 	end
 end
 
@@ -1016,6 +1099,12 @@ H.check_type = function(name, val, ref, allow_nil)
 		return
 	end
 	H.error(string.format("`%s` should be %s, not %s", name, ref, type(val)))
+end
+
+H.check_severity_map = function(name, map)
+	for _, level in ipairs(H.diagnostic_levels) do
+		H.check_type(string.format("%s.%s", name, level.name), map[level.name], "string", true)
+	end
 end
 
 H.get_filesize = function()
