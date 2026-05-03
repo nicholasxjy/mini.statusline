@@ -134,6 +134,35 @@ Here are code snippets for some common installation methods (use only one):
   -- Whether to use icons by default
   use_icons = true,
 
+  -- Diagnostics section defaults
+  diagnostics = {
+    -- Icon used before diagnostics summary
+    icon = nil,
+    -- Signs shown for each severity level
+    signs = {
+      ERROR = 'E',
+      WARN = 'W',
+      INFO = 'I',
+      HINT = 'H',
+    },
+  },
+
+  -- Highlight groups used by default content and built-in sections
+  highlight_groups = {
+    devinfo = 'MiniStatuslineDevinfo',
+    filename = 'MiniStatuslineFilename',
+    fileinfo = 'MiniStatuslineFileinfo',
+    inactive = 'MiniStatuslineInactive',
+    lsp_progress = 'MiniStatuslineLspProgress',
+    lsp_progress_done = 'MiniStatuslineLspProgressDone',
+    diagnostics = {
+      ERROR = 'MiniStatuslineDiagnosticError',
+      WARN = 'MiniStatuslineDiagnosticWarn',
+      INFO = 'MiniStatuslineDiagnosticInfo',
+      HINT = 'MiniStatuslineDiagnosticHint',
+    },
+  },
+
   -- Whether to show diagnostics from all buffers instead of current buffer
   show_workspace_diagnostics = false,
 }
