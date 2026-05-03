@@ -192,6 +192,12 @@ MiniStatusline.config = {
 	-- Whether to use icons by default
 	use_icons = true,
 
+	-- Git section defaults
+	git = {
+		-- Icon used before Git summary. If `nil`, no icon is shown.
+		icon = nil,
+	},
+
 	-- Diff section defaults
 	diff = {
 		-- Icon used before diff summary
@@ -206,7 +212,7 @@ MiniStatusline.config = {
 
 	-- Diagnostics section defaults
 	diagnostics = {
-		-- Icon used before diagnostics summary
+		-- Icon used before diagnostics summary. If `nil`, no icon is shown.
 		icon = nil,
 		-- Signs shown for each severity level
 		signs = {
@@ -353,9 +359,9 @@ end
 --- Empty string is returned if window width is lower than `args.trunc_width`.
 ---
 ---@param args __statusline_args Use `args.icon` to supply your own icon.
----
 ---@return __statusline_section
 MiniStatusline.section_git = function(args)
+	args = args or {}
 	if MiniStatusline.is_truncated(args.trunc_width) then
 		return ""
 	end
@@ -365,9 +371,8 @@ MiniStatusline.section_git = function(args)
 		return ""
 	end
 
-	local use_icons = H.use_icons or H.get_config().use_icons
-	local icon = args.icon or (use_icons and "" or "Git")
-	return icon .. " " .. (summary == "" and "-" or summary)
+	local icon = args.icon or H.get_config().git.icon
+	return H.with_prefix(icon, summary == "" and "-" or summary)
 end
 
 --- Section for diff information
@@ -476,9 +481,8 @@ MiniStatusline.section_diagnostics = function(args)
 		return ""
 	end
 
-	local use_icons = H.use_icons or config.use_icons
-	local icon = args.icon or config.diagnostics.icon or (use_icons and "" or "Diag")
-	return icon .. table.concat(t, "")
+	local icon = args.icon or config.diagnostics.icon
+	return H.with_prefix(icon, table.concat(t, ""))
 end
 
 --- Section for attached LSP servers
@@ -674,6 +678,8 @@ H.setup_config = function(config)
 	H.check_type("content.inactive", config.content.inactive, "function", true)
 
 	H.check_type("use_icons", config.use_icons, "boolean")
+	H.check_type("git", config.git, "table")
+	H.check_type("git.icon", config.git.icon, "string", true)
 	H.check_type("diff", config.diff, "table")
 	H.check_type("diff.icon", config.diff.icon, "string", true)
 	H.check_type("diff.signs", config.diff.signs, "table")
@@ -1153,6 +1159,13 @@ H.check_severity_map = function(name, map)
 	for _, level in ipairs(H.diagnostic_levels) do
 		H.check_type(string.format("%s.%s", name, level.name), map[level.name], "string", true)
 	end
+end
+
+H.with_prefix = function(prefix, text)
+	if prefix == nil or prefix == "" then
+		return text
+	end
+	return string.format("%s %s", prefix, text)
 end
 
 H.check_diff_map = function(name, map)

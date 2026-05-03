@@ -134,6 +134,12 @@ Here are code snippets for some common installation methods (use only one):
   -- Whether to use icons by default
   use_icons = true,
 
+  -- Git section defaults
+  git = {
+    -- Icon used before Git summary. If `nil`, no icon is shown.
+    icon = nil,
+  },
+
   -- Diff section defaults
   diff = {
     -- Icon used before diff summary
@@ -148,7 +154,7 @@ Here are code snippets for some common installation methods (use only one):
 
   -- Diagnostics section defaults
   diagnostics = {
-    -- Icon used before diagnostics summary
+    -- Icon used before diagnostics summary. If `nil`, no icon is shown.
     icon = nil,
     -- Signs shown for each severity level
     signs = {
