@@ -148,6 +148,18 @@ Stable branch:
   -- Whether to use icons by default
   use_icons = true,
 
+  -- Diff section defaults
+  diff = {
+    -- Icon used before diff summary
+    icon = nil,
+    -- Signs shown for each diff type
+    signs = {
+      added = '+',
+      modified = '~',
+      removed = '-',
+    },
+  },
+
   -- Diagnostics section defaults
   diagnostics = {
     -- Icon used before diagnostics summary
@@ -169,6 +181,11 @@ Stable branch:
     inactive = 'MiniStatuslineInactive',
     lsp_progress = 'MiniStatuslineLspProgress',
     lsp_progress_done = 'MiniStatuslineLspProgressDone',
+    diff = {
+      added = 'MiniStatuslineDiffAdded',
+      modified = 'MiniStatuslineDiffModified',
+      removed = 'MiniStatuslineDiffRemoved',
+    },
     diagnostics = {
       ERROR = 'MiniStatuslineDiagnosticError',
       WARN = 'MiniStatuslineDiagnosticWarn',

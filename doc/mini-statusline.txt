@@ -65,6 +65,12 @@ Highlight used in default statusline:
   |MiniStatusline.section_lsp()|.
 - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
   inside |MiniStatusline.section_lsp()|.
+- `MiniStatuslineDiffAdded` - for added diff count inside
+  |MiniStatusline.section_diff()|.
+- `MiniStatuslineDiffModified` - for modified diff count inside
+  |MiniStatusline.section_diff()|.
+- `MiniStatuslineDiffRemoved` - for removed diff count inside
+  |MiniStatusline.section_diff()|.
 - `MiniStatuslineDiagnosticError` - for error diagnostics inside
   |MiniStatusline.section_diagnostics()|.
 - `MiniStatuslineDiagnosticWarn` - for warning diagnostics inside
@@ -160,6 +166,18 @@ Defaults ~
     -- Whether to use icons by default
     use_icons = true,
 
+    -- Diff section defaults
+    diff = {
+      -- Icon used before diff summary
+      icon = nil,
+      -- Signs shown for each diff type
+      signs = {
+        added = '+',
+        modified = '~',
+        removed = '-',
+      },
+    },
+
     -- Diagnostics section defaults
     diagnostics = {
       -- Icon used before diagnostics summary
@@ -181,6 +199,11 @@ Defaults ~
       inactive = 'MiniStatuslineInactive',
       lsp_progress = 'MiniStatuslineLspProgress',
       lsp_progress_done = 'MiniStatuslineLspProgressDone',
+      diff = {
+        added = 'MiniStatuslineDiffAdded',
+        modified = 'MiniStatuslineDiffModified',
+        removed = 'MiniStatuslineDiffRemoved',
+      },
       diagnostics = {
         ERROR = 'MiniStatuslineDiagnosticError',
         WARN = 'MiniStatuslineDiagnosticWarn',
@@ -290,6 +313,18 @@ Empty string is returned if window width is lower than `args.trunc_width`.
 
 Parameters ~
 {args} `(table)` Section arguments. Use `args.icon` to supply your own icon.
+  Use `args.signs` to use custom signs per diff type. Supported keys are
+  `added`, `modified`, and `removed`. For example: >lua
+
+  { added = '', modified = '', removed = '' }
+<
+  Use `args.highlights` to use custom highlight groups per diff type. For
+  example: >lua
+
+  { added = 'DiffAdd', modified = 'DiffChange', removed = 'DiffDelete' }
+<
+  Use `args.reset_highlight` to restore statusline highlighting after each
+  highlighted diff entry.
 
 Return ~
 `(string)` Section string.
