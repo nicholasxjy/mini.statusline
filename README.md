@@ -136,13 +136,13 @@ Here are code snippets for some common installation methods (use only one):
 
   -- Git section defaults
   git = {
-    -- Icon used before Git summary. If `nil`, no icon is shown.
-    icon = nil,
+    -- Icon used before Git summary
+    icon = '',
   },
 
   -- Diff section defaults
   diff = {
-    -- Icon used before diff summary
+    -- Icon used before diff summary. If `nil`, no icon is shown.
     icon = nil,
     -- Signs shown for each diff type
     signs = {

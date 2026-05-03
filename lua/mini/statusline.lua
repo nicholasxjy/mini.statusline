@@ -194,13 +194,13 @@ MiniStatusline.config = {
 
 	-- Git section defaults
 	git = {
-		-- Icon used before Git summary. If `nil`, no icon is shown.
-		icon = nil,
+		-- Icon used before Git summary.
+		icon = "",
 	},
 
 	-- Diff section defaults
 	diff = {
-		-- Icon used before diff summary
+		-- Icon used before diff summary. If `nil`, no icon is shown.
 		icon = nil,
 		-- Signs shown for each diff type
 		signs = {
@@ -415,9 +415,8 @@ MiniStatusline.section_diff = function(args)
 	local signs = vim.tbl_deep_extend("force", vim.deepcopy(config.diff.signs), args.signs or {})
 	local highlights = vim.tbl_deep_extend("force", vim.deepcopy(config.highlight_groups.diff), args.highlights or {})
 	local reset_highlight = args.reset_highlight or config.highlight_groups.devinfo
-	local use_icons = H.use_icons or config.use_icons
-	local icon = args.icon or config.diff.icon or (use_icons and "" or "Diff")
-	return icon .. " " .. H.format_diff_summary(summary, signs, highlights, reset_highlight)
+	local icon = args.icon or config.diff.icon
+	return H.with_prefix(icon, H.format_diff_summary(summary, signs, highlights, reset_highlight))
 end
 
 --- Section for Neovim's builtin diagnostics
