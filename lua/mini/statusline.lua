@@ -63,6 +63,12 @@
 ---   |MiniStatusline.section_lsp()|.
 --- - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
 ---   inside |MiniStatusline.section_lsp()|.
+--- - `MiniStatuslineDiffAdded` - for added diff count inside
+---   |MiniStatusline.section_diff()|.
+--- - `MiniStatuslineDiffModified` - for modified diff count inside
+---   |MiniStatusline.section_diff()|.
+--- - `MiniStatuslineDiffRemoved` - for removed diff count inside
+---   |MiniStatusline.section_diff()|.
 --- - `MiniStatuslineDiagnosticError` - for error diagnostics inside
 ---   |MiniStatusline.section_diagnostics()|.
 --- - `MiniStatuslineDiagnosticWarn` - for warning diagnostics inside
@@ -186,6 +192,18 @@ MiniStatusline.config = {
 	-- Whether to use icons by default
 	use_icons = true,
 
+	-- Diff section defaults
+	diff = {
+		-- Icon used before diff summary
+		icon = nil,
+		-- Signs shown for each diff type
+		signs = {
+			added = "+",
+			modified = "~",
+			removed = "-",
+		},
+	},
+
 	-- Diagnostics section defaults
 	diagnostics = {
 		-- Icon used before diagnostics summary
@@ -207,6 +225,11 @@ MiniStatusline.config = {
 		inactive = "MiniStatuslineInactive",
 		lsp_progress = "MiniStatuslineLspProgress",
 		lsp_progress_done = "MiniStatuslineLspProgressDone",
+		diff = {
+			added = "MiniStatuslineDiffAdded",
+			modified = "MiniStatuslineDiffModified",
+			removed = "MiniStatuslineDiffRemoved",
+		},
 		diagnostics = {
 			ERROR = "MiniStatuslineDiagnosticError",
 			WARN = "MiniStatuslineDiagnosticWarn",
@@ -359,9 +382,21 @@ end
 --- Empty string is returned if window width is lower than `args.trunc_width`.
 ---
 ---@param args __statusline_args Use `args.icon` to supply your own icon.
+---   Use `args.signs` to use custom signs per diff type. Supported keys are
+---   `added`, `modified`, and `removed`. For example: >lua
 ---
+---   { added = '', modified = '', removed = '' }
+--- <
+---   Use `args.highlights` to use custom highlight groups per diff type. For
+---   example: >lua
+---
+---   { added = 'DiffAdd', modified = 'DiffChange', removed = 'DiffDelete' }
+--- <
+---   Use `args.reset_highlight` to restore statusline highlighting after each
+---   highlighted diff entry.
 ---@return __statusline_section
 MiniStatusline.section_diff = function(args)
+	args = args or {}
 	if MiniStatusline.is_truncated(args.trunc_width) then
 		return ""
 	end
@@ -371,9 +406,13 @@ MiniStatusline.section_diff = function(args)
 		return ""
 	end
 
-	local use_icons = H.use_icons or H.get_config().use_icons
-	local icon = args.icon or (use_icons and "" or "Diff")
-	return icon .. " " .. (summary == "" and "-" or summary)
+	local config = H.get_config()
+	local signs = vim.tbl_deep_extend("force", vim.deepcopy(config.diff.signs), args.signs or {})
+	local highlights = vim.tbl_deep_extend("force", vim.deepcopy(config.highlight_groups.diff), args.highlights or {})
+	local reset_highlight = args.reset_highlight or config.highlight_groups.devinfo
+	local use_icons = H.use_icons or config.use_icons
+	local icon = args.icon or config.diff.icon or (use_icons and "" or "Diff")
+	return icon .. " " .. H.format_diff_summary(summary, signs, highlights, reset_highlight)
 end
 
 --- Section for Neovim's builtin diagnostics
@@ -635,6 +674,10 @@ H.setup_config = function(config)
 	H.check_type("content.inactive", config.content.inactive, "function", true)
 
 	H.check_type("use_icons", config.use_icons, "boolean")
+	H.check_type("diff", config.diff, "table")
+	H.check_type("diff.icon", config.diff.icon, "string", true)
+	H.check_type("diff.signs", config.diff.signs, "table")
+	H.check_diff_map("diff.signs", config.diff.signs)
 	H.check_type("diagnostics", config.diagnostics, "table")
 	H.check_type("diagnostics.icon", config.diagnostics.icon, "string", true)
 	H.check_type("diagnostics.signs", config.diagnostics.signs, "table")
@@ -646,6 +689,8 @@ H.setup_config = function(config)
 	H.check_type("highlight_groups.inactive", config.highlight_groups.inactive, "string")
 	H.check_type("highlight_groups.lsp_progress", config.highlight_groups.lsp_progress, "string")
 	H.check_type("highlight_groups.lsp_progress_done", config.highlight_groups.lsp_progress_done, "string")
+	H.check_type("highlight_groups.diff", config.highlight_groups.diff, "table")
+	H.check_diff_map("highlight_groups.diff", config.highlight_groups.diff)
 	H.check_type("highlight_groups.diagnostics", config.highlight_groups.diagnostics, "table")
 	H.check_severity_map("highlight_groups.diagnostics", config.highlight_groups.diagnostics)
 	H.check_type("show_workspace_diagnostics", config.show_workspace_diagnostics, "boolean")
@@ -711,16 +756,19 @@ H.create_default_hl = function()
   set_default_hl('MiniStatuslineModeCommand',    { link = 'DiffText' })
   set_default_hl('MiniStatuslineModeOther',      { link = 'IncSearch' })
 
-  set_default_hl('MiniStatuslineDevinfo',         { link = 'StatusLine' })
-  set_default_hl('MiniStatuslineFilename',        { link = 'StatusLineNC' })
-  set_default_hl('MiniStatuslineFileinfo',        { link = 'StatusLine' })
-  set_default_hl('MiniStatuslineLspProgress',     { link = 'DiagnosticInfo' })
-  set_default_hl('MiniStatuslineLspProgressDone', { link = 'DiffAdd' })
-  set_default_hl('MiniStatuslineDiagnosticError', { link = 'DiagnosticError' })
-  set_default_hl('MiniStatuslineDiagnosticWarn',  { link = 'DiagnosticWarn' })
-  set_default_hl('MiniStatuslineDiagnosticInfo',  { link = 'DiagnosticInfo' })
-  set_default_hl('MiniStatuslineDiagnosticHint',  { link = 'DiagnosticHint' })
-  set_default_hl('MiniStatuslineInactive',        { link = 'StatusLineNC' })
+  set_default_hl('MiniStatuslineDevinfo',          { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineFilename',         { link = 'StatusLineNC' })
+  set_default_hl('MiniStatuslineFileinfo',         { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineLspProgress',      { link = 'DiagnosticInfo' })
+  set_default_hl('MiniStatuslineLspProgressDone',  { link = 'DiffAdd' })
+  set_default_hl('MiniStatuslineDiffAdded',        { link = 'DiffAdd' })
+  set_default_hl('MiniStatuslineDiffModified',     { link = 'DiffChange' })
+  set_default_hl('MiniStatuslineDiffRemoved',      { link = 'DiffDelete' })
+  set_default_hl('MiniStatuslineDiagnosticError',  { link = 'DiagnosticError' })
+  set_default_hl('MiniStatuslineDiagnosticWarn',   { link = 'DiagnosticWarn' })
+  set_default_hl('MiniStatuslineDiagnosticInfo',   { link = 'DiagnosticInfo' })
+  set_default_hl('MiniStatuslineDiagnosticHint',   { link = 'DiagnosticHint' })
+  set_default_hl('MiniStatuslineInactive',         { link = 'StatusLineNC' })
 end
 
 H.is_disabled = function()
@@ -767,7 +815,7 @@ H.default_content_active = function()
   H.use_icons = H.get_config().use_icons
   local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
   local git           = MiniStatusline.section_git({ trunc_width = 40 })
-  local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
+  local diff          = MiniStatusline.section_diff({ trunc_width = 75, reset_highlight = hl_groups.devinfo })
   local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75, reset_highlight = hl_groups.devinfo })
   local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
   local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
@@ -1105,6 +1153,43 @@ H.check_severity_map = function(name, map)
 	for _, level in ipairs(H.diagnostic_levels) do
 		H.check_type(string.format("%s.%s", name, level.name), map[level.name], "string", true)
 	end
+end
+
+H.check_diff_map = function(name, map)
+	for _, key in ipairs({ "added", "modified", "removed" }) do
+		H.check_type(string.format("%s.%s", name, key), map[key], "string", true)
+	end
+end
+
+H.diff_token_types = {
+	["+"] = "added",
+	["~"] = "modified",
+	["-"] = "removed",
+}
+
+H.format_diff_summary = function(summary, signs, highlights, reset_highlight)
+	if summary == "" then
+		return "-"
+	end
+
+	local parts = {}
+	for token in vim.gsplit(summary, "%s+", { trimempty = true }) do
+		local prefix, count = token:match("^([+~-])(%d+)$")
+		local diff_type = H.diff_token_types[prefix]
+		if diff_type == nil then
+			table.insert(parts, token)
+		else
+			local text = (signs[diff_type] or prefix) .. count
+			local hl = highlights[diff_type]
+			if type(hl) == "string" and hl ~= "" then
+				table.insert(parts, string.format("%%#%s#%s%%#%s#", hl, text, reset_highlight))
+			else
+				table.insert(parts, text)
+			end
+		end
+	end
+
+	return #parts == 0 and summary or table.concat(parts, " ")
 end
 
 H.get_filesize = function()
