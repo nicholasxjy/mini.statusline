@@ -501,7 +501,7 @@ MiniStatusline.section_lsp = function(args)
 
 	local buf_id = vim.api.nvim_get_current_buf()
 	local attached = H.attached_lsp[buf_id] or ""
-	local progress, progress_hl, progress_client = H.get_lsp_progress(buf_id)
+	local progress, progress_hl, progress_client, progress_kind = H.get_lsp_progress(buf_id)
 	if attached == "" and progress == "" then
 		return ""
 	end
@@ -516,7 +516,7 @@ MiniStatusline.section_lsp = function(args)
 	end
 
 	local name = attached
-	if progress ~= "" and type(progress_client) == "string" and progress_client ~= "" then
+	if progress ~= "" and progress_kind ~= "end" and type(progress_client) == "string" and progress_client ~= "" then
 		name = progress_client
 	end
 
@@ -1058,14 +1058,14 @@ end
 H.get_lsp_progress = function(buf_id)
 	local candidate = H.choose_lsp_progress_entry(buf_id)
 	if candidate == nil then
-		return "", nil, nil
+		return "", nil, nil, nil
 	end
 
 	local entry = candidate.entry
 	local text = H.get_lsp_progress_text(entry, candidate.client_name)
 	local hl_groups = H.get_config().highlight_groups
 	local hl = entry.kind == "end" and hl_groups.lsp_progress_done or hl_groups.lsp_progress
-	return H.format_lsp_progress(text, entry.percentage, entry.kind == "end"), hl, candidate.client_name
+	return H.format_lsp_progress(text, entry.percentage, entry.kind == "end"), hl, candidate.client_name, entry.kind
 end
 
 -- NOTE: Use `has('nvim-0.xx')` instead of directly checking presence of target
@@ -1079,7 +1079,7 @@ if vim.fn.has("nvim-0.10") == 0 then
 	H.get_lsp_progress = function(buf_id)
 		local ok, messages = pcall(vim.lsp.util.get_progress_messages)
 		if not ok or type(messages) ~= "table" or vim.tbl_isempty(messages) then
-			return "", nil, nil
+			return "", nil, nil, nil
 		end
 
 		local attached_names = {}
@@ -1104,10 +1104,10 @@ if vim.fn.has("nvim-0.10") == 0 then
 		end
 
 		if percentage == nil and (text == nil or text == "") then
-			return "", nil, nil
+			return "", nil, nil, nil
 		end
 
-		return H.format_lsp_progress(text, percentage, false), H.get_config().highlight_groups.lsp_progress, client_name
+		return H.format_lsp_progress(text, percentage, false), H.get_config().highlight_groups.lsp_progress, client_name, "report"
 	end
 end
 
