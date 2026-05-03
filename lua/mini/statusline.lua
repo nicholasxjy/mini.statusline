@@ -829,11 +829,11 @@ H.default_content_active = function()
   -- sections, etc.)
   return MiniStatusline.combine_groups({
     { hl = mode_hl,             strings = { mode } },
-    { hl = hl_groups.devinfo,   strings = { git, diff, diagnostics, lsp } },
-    '%<', -- Mark general truncate point
     { hl = hl_groups.filename,  strings = { filename } },
+    '%<', -- Mark general truncate point
+    { hl = hl_groups.devinfo,   strings = { git, diff, diagnostics } },
     '%=', -- End left alignment
-    { hl = hl_groups.fileinfo,  strings = { fileinfo } },
+    { hl = hl_groups.fileinfo,  strings = { lsp, fileinfo } },
     { hl = mode_hl,             strings = { search, location } },
   })
 end
