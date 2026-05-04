@@ -55,10 +55,12 @@
 ---
 --- Highlight used in default statusline:
 --- - `MiniStatuslineDevinfo` - for "dev info" group
----   (|MiniStatusline.section_git()| and default |MiniStatusline.section_diagnostics()|
----   output).
---- - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
---- - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
+---   (default |MiniStatusline.section_diff()| and
+---   |MiniStatusline.section_diagnostics()| output).
+--- - `MiniStatuslineFilename` - for default |MiniStatusline.section_git()|
+---   and |MiniStatusline.section_filename()| output.
+--- - `MiniStatuslineFileinfo` - for default |MiniStatusline.section_lsp()|
+---   and |MiniStatusline.section_fileinfo()| output.
 --- - `MiniStatuslineLspProgress` - for active LSP progress inside
 ---   |MiniStatusline.section_lsp()|.
 --- - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
@@ -111,11 +113,11 @@
 ---
 ---     return MiniStatusline.combine_groups({
 ---       { hl = mode_hl,                  strings = { mode } },
----       { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+---       { hl = 'MiniStatuslineFilename', strings = { git, filename } },
 ---       '%<', -- Mark general truncate point
----       { hl = 'MiniStatuslineFilename', strings = { filename } },
+---       { hl = 'MiniStatuslineDevinfo',  strings = { diff, diagnostics } },
 ---       '%=', -- End left alignment
----       { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+---       { hl = 'MiniStatuslineFileinfo', strings = { lsp, fileinfo } },
 ---       { hl = mode_hl,                  strings = { search, location } },
 ---     })
 ---   end
@@ -833,10 +835,10 @@ H.default_content_active = function()
   -- correct padding with spaces between groups (accounts for 'missing'
   -- sections, etc.)
   return MiniStatusline.combine_groups({
-    { hl = mode_hl,             strings = { mode } },
-    { hl = hl_groups.filename,  strings = { filename } },
-    '%<', -- Mark general truncate point
-    { hl = hl_groups.devinfo,   strings = { git, diff, diagnostics } },
+        { hl = mode_hl,            strings = { mode } },
+    { hl = hl_groups.filename,   strings = { git, filename } },
+        '%<', -- Mark general truncate point
+    { hl = hl_groups.devinfo,  strings = {  diff, diagnostics } },
     '%=', -- End left alignment
     { hl = hl_groups.fileinfo,  strings = { lsp, fileinfo } },
     { hl = mode_hl,             strings = { search, location } },
@@ -1107,7 +1109,10 @@ if vim.fn.has("nvim-0.10") == 0 then
 			return "", nil, nil, nil
 		end
 
-		return H.format_lsp_progress(text, percentage, false), H.get_config().highlight_groups.lsp_progress, client_name, "report"
+		return H.format_lsp_progress(text, percentage, false),
+			H.get_config().highlight_groups.lsp_progress,
+			client_name,
+			"report"
 	end
 end
 

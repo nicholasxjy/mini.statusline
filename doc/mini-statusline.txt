@@ -57,10 +57,12 @@ Highlight depending on mode (second |MiniStatusline.section_mode()| output):
 
 Highlight used in default statusline:
 - `MiniStatuslineDevinfo` - for "dev info" group
-  (|MiniStatusline.section_git()| and default
+  (default |MiniStatusline.section_diff()| and
   |MiniStatusline.section_diagnostics()| output).
-- `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
-- `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
+- `MiniStatuslineFilename` - for default |MiniStatusline.section_git()|
+  and |MiniStatusline.section_filename()| output.
+- `MiniStatuslineFileinfo` - for default |MiniStatusline.section_lsp()|
+  and |MiniStatusline.section_fileinfo()| output.
 - `MiniStatuslineLspProgress` - for active LSP progress inside
   |MiniStatusline.section_lsp()|.
 - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
@@ -114,11 +116,11 @@ This function is used as default value for active content: >lua
 
     return MiniStatusline.combine_groups({
       { hl = mode_hl,                  strings = { mode } },
-      { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+      { hl = 'MiniStatuslineFilename', strings = { git, filename } },
       '%<', -- Mark general truncate point
-      { hl = 'MiniStatuslineFilename', strings = { filename } },
+      { hl = 'MiniStatuslineDevinfo',  strings = { diff, diagnostics } },
       '%=', -- End left alignment
-      { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+      { hl = 'MiniStatuslineFileinfo', strings = { lsp, fileinfo } },
       { hl = mode_hl,                  strings = { search, location } },
     })
   end
