@@ -103,8 +103,8 @@
 ---   function()
 ---     local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
 ---     local git           = MiniStatusline.section_git({ trunc_width = 40 })
----     local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
----     local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75 })
+---     local diff          = MiniStatusline.section_diff({ trunc_width = 40 })
+---     local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40 })
 ---     local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
 ---     local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
 ---     local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
@@ -531,7 +531,7 @@ end
 
 --- Section for file name
 ---
---- Show full file name or relative in short output.
+--- Show full file name or shortened relative path in short output.
 ---
 --- Short output is returned if window width is lower than `args.trunc_width`.
 ---
@@ -544,8 +544,10 @@ MiniStatusline.section_filename = function(args)
 		return "%t"
 	elseif MiniStatusline.is_truncated(args.trunc_width) then
 		-- File name with 'truncate', 'modified', 'readonly' flags
-		-- Use relative path if truncated
-		return "%f%m%r"
+		-- Use shortened relative path if truncated to leave more room for other sections
+		local bufname = vim.api.nvim_buf_get_name(0)
+		local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
+		return vim.fn.pathshorten(relpath):gsub("%%", "%%%%") .. "%m%r"
 	else
 		-- Use fullpath if not truncated
 		return "%F%m%r"
@@ -822,8 +824,8 @@ H.default_content_active = function()
   H.use_icons = H.get_config().use_icons
   local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
   local git           = MiniStatusline.section_git({ trunc_width = 40 })
-  local diff          = MiniStatusline.section_diff({ trunc_width = 75, reset_highlight = hl_groups.devinfo })
-  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75, reset_highlight = hl_groups.devinfo })
+  local diff          = MiniStatusline.section_diff({ trunc_width = 40, reset_highlight = hl_groups.devinfo })
+  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40, reset_highlight = hl_groups.devinfo })
   local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
   local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
   local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
