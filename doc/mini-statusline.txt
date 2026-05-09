@@ -394,7 +394,7 @@ Return ~
                    `MiniStatusline.section_filename`({args})
 Section for file name
 
-Show full file name or relative in short output.
+Show file name with path relative to current working directory.
 Long paths are shortened in the middle to leave room for other sections.
 
 Short output is returned if window width is lower than `args.trunc_width`.

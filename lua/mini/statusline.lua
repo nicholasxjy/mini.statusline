@@ -539,7 +539,7 @@ end
 
 --- Section for file name
 ---
---- Show full file name or shortened relative path in short output.
+--- Show file name with path relative to current working directory.
 --- Long paths are shortened in the middle to leave room for other sections.
 ---
 --- Short output is returned if window width is lower than `args.trunc_width`.
@@ -556,16 +556,13 @@ MiniStatusline.section_filename = function(args)
 
 	local bufname = vim.api.nvim_buf_get_name(0)
 	local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
-	local fullpath = bufname == "" and "[No Name]" or bufname
 	local is_truncated = MiniStatusline.is_truncated(args.trunc_width)
 	local compact_path = is_truncated and vim.fn.pathshorten(relpath) or relpath
-	local path = is_truncated and compact_path or fullpath
+	local path = is_truncated and compact_path or relpath
 	local max_width = is_truncated and H.filename_max_width.truncated or H.filename_max_width.default
 
 	if vim.fn.strdisplaywidth(path) > max_width then
-		-- Prefer compact relative path when shortening so more of the useful
-		-- directory and file name stays visible.
-		path = H.shorten_middle(compact_path, max_width)
+		path = H.shorten_middle(path, max_width)
 	end
 
 	return path:gsub("%%", "%%%%") .. "%m%r"
