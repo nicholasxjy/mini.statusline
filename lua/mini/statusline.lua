@@ -548,12 +548,14 @@ MiniStatusline.section_filename = function(args)
 
 	local bufname = vim.api.nvim_buf_get_name(0)
 	local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
+	local fullpath = bufname == "" and "[No Name]" or bufname
 	local is_truncated = MiniStatusline.is_truncated(args.trunc_width)
-	local path = is_truncated and vim.fn.pathshorten(relpath) or (bufname == "" and "[No Name]" or bufname)
-	local max_width = is_truncated and 30 or 60
+	local path = is_truncated and vim.fn.pathshorten(relpath) or fullpath
+	local max_width = is_truncated and H.filename_max_width.truncated or H.filename_max_width.default
 
 	if vim.fn.strdisplaywidth(path) > max_width then
-		path = H.shorten_middle(is_truncated and path or relpath, max_width)
+		local source_path = is_truncated and path or relpath
+		path = H.shorten_middle(source_path, max_width)
 	end
 
 	return path:gsub("%%", "%%%%") .. "%m%r"
@@ -665,6 +667,11 @@ H.diagnostic_levels = {
 
 -- Diagnostic counts per buffer id
 H.diagnostic_counts = {}
+
+H.filename_max_width = {
+	default = 60,
+	truncated = 30,
+}
 
 -- String representation of attached LSP clients per buffer id
 H.attached_lsp = {}
