@@ -554,6 +554,8 @@ MiniStatusline.section_filename = function(args)
 	local max_width = is_truncated and H.filename_max_width.truncated or H.filename_max_width.default
 
 	if vim.fn.strdisplaywidth(path) > max_width then
+		-- Prefer relative path when shortening a non-truncated name so directory
+		-- context stays visible without spending width on absolute path prefix.
 		local source_path = is_truncated and path or relpath
 		path = H.shorten_middle(source_path, max_width)
 	end
@@ -668,6 +670,7 @@ H.diagnostic_levels = {
 -- Diagnostic counts per buffer id
 H.diagnostic_counts = {}
 
+-- Keep filename compact enough to leave room for diff and diagnostics sections.
 H.filename_max_width = {
 	default = 60,
 	truncated = 30,
