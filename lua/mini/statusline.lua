@@ -532,6 +532,7 @@ end
 --- Section for file name
 ---
 --- Show full file name or shortened relative path in short output.
+--- Long paths are shortened in the middle to leave room for other sections.
 ---
 --- Short output is returned if window width is lower than `args.trunc_width`.
 ---
@@ -539,19 +540,23 @@ end
 ---
 ---@return __statusline_section
 MiniStatusline.section_filename = function(args)
+	args = args or {}
 	-- In terminal always use plain name
 	if vim.bo.buftype == "terminal" then
 		return "%t"
-	elseif MiniStatusline.is_truncated(args.trunc_width) then
-		-- File name with 'truncate', 'modified', 'readonly' flags
-		-- Use shortened relative path if truncated to leave more room for other sections
-		local bufname = vim.api.nvim_buf_get_name(0)
-		local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
-		return vim.fn.pathshorten(relpath):gsub("%%", "%%%%") .. "%m%r"
-	else
-		-- Use fullpath if not truncated
-		return "%F%m%r"
 	end
+
+	local bufname = vim.api.nvim_buf_get_name(0)
+	local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
+	local is_truncated = MiniStatusline.is_truncated(args.trunc_width)
+	local path = is_truncated and vim.fn.pathshorten(relpath) or (bufname == "" and "[No Name]" or bufname)
+	local max_width = is_truncated and 30 or 60
+
+	if vim.fn.strdisplaywidth(path) > max_width then
+		path = H.shorten_middle(is_truncated and path or relpath, max_width)
+	end
+
+	return path:gsub("%%", "%%%%") .. "%m%r"
 end
 
 --- Section for file information
@@ -904,6 +909,44 @@ H.shorten_lsp_progress_text = function(text, max_width)
 	end
 
 	return table.concat(chars, "") .. "…"
+end
+
+H.shorten_middle = function(text, max_width)
+	text = text or ""
+	max_width = max_width or 0
+	if text == "" or max_width <= 0 or vim.fn.strdisplaywidth(text) <= max_width then
+		return text
+	end
+	if max_width == 1 then
+		return "…"
+	end
+
+	local chars = vim.fn.split(text, "\\zs")
+	local left_max = math.floor((max_width - 1) / 2)
+	local right_max = max_width - 1 - left_max
+	local left, right = {}, {}
+	local left_width, right_width = 0, 0
+
+	for _, ch in ipairs(chars) do
+		local ch_width = vim.fn.strdisplaywidth(ch)
+		if left_width + ch_width > left_max then
+			break
+		end
+		table.insert(left, ch)
+		left_width = left_width + ch_width
+	end
+
+	for i = #chars, 1, -1 do
+		local ch = chars[i]
+		local ch_width = vim.fn.strdisplaywidth(ch)
+		if right_width + ch_width > right_max then
+			break
+		end
+		table.insert(right, 1, ch)
+		right_width = right_width + ch_width
+	end
+
+	return table.concat(left, "") .. "…" .. table.concat(right, "")
 end
 
 H.format_lsp_progress = function(text, percentage, is_done)

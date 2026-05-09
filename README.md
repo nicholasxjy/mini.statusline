@@ -33,6 +33,7 @@ https://user-images.githubusercontent.com/24854248/173045208-42463c8f-a2ac-488d-
     - Combine them in groups with `MiniStatusline.combine_groups()`.
 - Built-in active mode indicator with colors.
 - Sections can hide information when window is too narrow (specific window width is configurable per section).
+- Long file paths are shortened in the middle to leave more room for diff and diagnostics sections.
 
 ## Dependencies
 
