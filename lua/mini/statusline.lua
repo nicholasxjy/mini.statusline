@@ -862,11 +862,11 @@ H.default_content_active = function()
   -- correct padding with spaces between groups (accounts for 'missing'
   -- sections, etc.)
   return MiniStatusline.combine_groups({
-        { hl = mode_hl,                      strings = { mode } },
-    { hl = hl_groups.filename,             strings = { git } },
+        { hl = mode_hl,              strings = { mode } },
+    { hl = hl_groups.devinfo,             strings = { git } },
     { hl = hl_groups.diff.group,           strings = { diff } },
         '%<', -- Mark general truncate point
-    { hl = hl_groups.devinfo,              strings = { filename, lsp } },
+    { hl = hl_groups.filename,              strings = { filename, lsp } },
     { hl = hl_groups.diagnostics.group,    strings = { diagnostics } },
         '%=', -- End left alignment
     { hl = hl_groups.fileinfo,            strings = { fileinfo } },
