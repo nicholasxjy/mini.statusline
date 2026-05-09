@@ -189,11 +189,13 @@ Stable branch:
     lsp_progress = 'MiniStatuslineLspProgress',
     lsp_progress_done = 'MiniStatuslineLspProgressDone',
     diff = {
+      group = 'MiniStatuslineDiff',
       added = 'MiniStatuslineDiffAdded',
       modified = 'MiniStatuslineDiffModified',
       removed = 'MiniStatuslineDiffRemoved',
     },
     diagnostics = {
+      group = 'MiniStatuslineDiagnostics',
       ERROR = 'MiniStatuslineDiagnosticError',
       WARN = 'MiniStatuslineDiagnosticWarn',
       INFO = 'MiniStatuslineDiagnosticInfo',

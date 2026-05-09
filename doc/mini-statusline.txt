@@ -56,13 +56,17 @@ Highlight depending on mode (second |MiniStatusline.section_mode()| output):
 - `MiniStatuslineModeOther` - other modes (like Terminal, etc.).
 
 Highlight used in default statusline:
-- `MiniStatuslineDevinfo` - for "dev info" group
-  (default |MiniStatusline.section_diff()| and
-  |MiniStatusline.section_diagnostics()| output).
+- `MiniStatuslineDevinfo` - for default |MiniStatusline.section_lsp()|
+  output.
+- `MiniStatuslineDiff` - for default |MiniStatusline.section_diff()|
+  output.
+- `MiniStatuslineDiagnostics` - for default
+  |MiniStatusline.section_diagnostics()| output.
 - `MiniStatuslineFilename` - for default |MiniStatusline.section_git()|
-  and |MiniStatusline.section_filename()| output.
-- `MiniStatuslineFileinfo` - for default |MiniStatusline.section_lsp()|
-  and |MiniStatusline.section_fileinfo()| output.
+  output.
+- `MiniStatuslineFileinfo` - for default
+  |MiniStatusline.section_fileinfo()| and
+  |MiniStatusline.section_filename()| output.
 - `MiniStatuslineLspProgress` - for active LSP progress inside
   |MiniStatusline.section_lsp()|.
 - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
@@ -106,22 +110,24 @@ This function is used as default value for active content: >lua
   function()
     local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
     local git           = MiniStatusline.section_git({ trunc_width = 40 })
-    local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
-    local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75 })
+    local diff          = MiniStatusline.section_diff({ trunc_width = 40 })
+    local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40 })
     local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
-    local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
+    local filename      = MiniStatusline.section_filename({ trunc_width = 120 })
     local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
     local location      = MiniStatusline.section_location({ trunc_width = 75 })
     local search        = MiniStatusline.section_searchcount({ trunc_width = 75 })
 
     return MiniStatusline.combine_groups({
-      { hl = mode_hl,                  strings = { mode } },
-      { hl = 'MiniStatuslineFilename', strings = { git, filename } },
+      { hl = mode_hl,                     strings = { mode } },
+      { hl = 'MiniStatuslineFilename',    strings = { git } },
+      { hl = 'MiniStatuslineDiff',        strings = { diff } },
       '%<', -- Mark general truncate point
-      { hl = 'MiniStatuslineDevinfo',  strings = { diff, diagnostics } },
+      { hl = 'MiniStatuslineDevinfo',     strings = { lsp } },
+      { hl = 'MiniStatuslineDiagnostics', strings = { diagnostics } },
       '%=', -- End left alignment
-      { hl = 'MiniStatuslineFileinfo', strings = { lsp, fileinfo } },
-      { hl = mode_hl,                  strings = { search, location } },
+      { hl = 'MiniStatuslineFileinfo',    strings = { fileinfo, filename } },
+      { hl = mode_hl,                     strings = { search, location } },
     })
   end
 <
@@ -208,11 +214,13 @@ Defaults ~
       lsp_progress = 'MiniStatuslineLspProgress',
       lsp_progress_done = 'MiniStatuslineLspProgressDone',
       diff = {
+        group = 'MiniStatuslineDiff',
         added = 'MiniStatuslineDiffAdded',
         modified = 'MiniStatuslineDiffModified',
         removed = 'MiniStatuslineDiffRemoved',
       },
       diagnostics = {
+        group = 'MiniStatuslineDiagnostics',
         ERROR = 'MiniStatuslineDiagnosticError',
         WARN = 'MiniStatuslineDiagnosticWarn',
         INFO = 'MiniStatuslineDiagnosticInfo',

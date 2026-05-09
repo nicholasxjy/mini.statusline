@@ -54,13 +54,17 @@
 --- - `MiniStatuslineModeOther` - other modes (like Terminal, etc.).
 ---
 --- Highlight used in default statusline:
---- - `MiniStatuslineDevinfo` - for "dev info" group
----   (default |MiniStatusline.section_diff()| and
----   |MiniStatusline.section_diagnostics()| output).
+--- - `MiniStatuslineDevinfo` - for default |MiniStatusline.section_lsp()|
+---   output.
+--- - `MiniStatuslineDiff` - for default |MiniStatusline.section_diff()|
+---   output.
+--- - `MiniStatuslineDiagnostics` - for default
+---   |MiniStatusline.section_diagnostics()| output.
 --- - `MiniStatuslineFilename` - for default |MiniStatusline.section_git()|
----   and |MiniStatusline.section_filename()| output.
---- - `MiniStatuslineFileinfo` - for default |MiniStatusline.section_lsp()|
----   and |MiniStatusline.section_fileinfo()| output.
+---   output.
+--- - `MiniStatuslineFileinfo` - for default
+---   |MiniStatusline.section_fileinfo()| and
+---   |MiniStatusline.section_filename()| output.
 --- - `MiniStatuslineLspProgress` - for active LSP progress inside
 ---   |MiniStatusline.section_lsp()|.
 --- - `MiniStatuslineLspProgressDone` - for recently completed LSP progress
@@ -106,19 +110,21 @@
 ---     local diff          = MiniStatusline.section_diff({ trunc_width = 40 })
 ---     local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40 })
 ---     local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
----     local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
+---     local filename      = MiniStatusline.section_filename({ trunc_width = 120 })
 ---     local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
 ---     local location      = MiniStatusline.section_location({ trunc_width = 75 })
 ---     local search        = MiniStatusline.section_searchcount({ trunc_width = 75 })
 ---
 ---     return MiniStatusline.combine_groups({
----       { hl = mode_hl,                  strings = { mode } },
----       { hl = 'MiniStatuslineFilename', strings = { git, filename } },
+---       { hl = mode_hl,                     strings = { mode } },
+---       { hl = 'MiniStatuslineFilename',    strings = { git } },
+---       { hl = 'MiniStatuslineDiff',        strings = { diff } },
 ---       '%<', -- Mark general truncate point
----       { hl = 'MiniStatuslineDevinfo',  strings = { diff, diagnostics } },
+---       { hl = 'MiniStatuslineDevinfo',     strings = { lsp } },
+---       { hl = 'MiniStatuslineDiagnostics', strings = { diagnostics } },
 ---       '%=', -- End left alignment
----       { hl = 'MiniStatuslineFileinfo', strings = { lsp, fileinfo } },
----       { hl = mode_hl,                  strings = { search, location } },
+---       { hl = 'MiniStatuslineFileinfo',    strings = { fileinfo, filename } },
+---       { hl = mode_hl,                     strings = { search, location } },
 ---     })
 ---   end
 --- <
@@ -234,11 +240,13 @@ MiniStatusline.config = {
 		lsp_progress = "MiniStatuslineLspProgress",
 		lsp_progress_done = "MiniStatuslineLspProgressDone",
 		diff = {
+			group = "MiniStatuslineDiff",
 			added = "MiniStatuslineDiffAdded",
 			modified = "MiniStatuslineDiffModified",
 			removed = "MiniStatuslineDiffRemoved",
 		},
 		diagnostics = {
+			group = "MiniStatuslineDiagnostics",
 			ERROR = "MiniStatuslineDiagnosticError",
 			WARN = "MiniStatuslineDiagnosticWarn",
 			INFO = "MiniStatuslineDiagnosticInfo",
@@ -416,7 +424,7 @@ MiniStatusline.section_diff = function(args)
 	local config = H.get_config()
 	local signs = vim.tbl_deep_extend("force", vim.deepcopy(config.diff.signs), args.signs or {})
 	local highlights = vim.tbl_deep_extend("force", vim.deepcopy(config.highlight_groups.diff), args.highlights or {})
-	local reset_highlight = args.reset_highlight or config.highlight_groups.devinfo
+	local reset_highlight = args.reset_highlight or config.highlight_groups.diff.group
 	local icon = args.icon or config.diff.icon
 	return H.with_prefix(icon, H.format_diff_summary(summary, signs, highlights, reset_highlight))
 end
@@ -454,7 +462,7 @@ MiniStatusline.section_diagnostics = function(args)
 	local signs = vim.tbl_deep_extend("force", vim.deepcopy(config.diagnostics.signs), args.signs or {})
 	local highlights =
 		vim.tbl_deep_extend("force", vim.deepcopy(config.highlight_groups.diagnostics), args.highlights or {})
-	local reset_highlight = args.reset_highlight or config.highlight_groups.devinfo
+	local reset_highlight = args.reset_highlight or config.highlight_groups.diagnostics.group
 
 	-- Construct string parts. NOTE: call `diagnostic_is_disabled()` *after*
 	-- check for present `count` to not source `vim.diagnostic` on startup.
@@ -472,9 +480,9 @@ MiniStatusline.section_diagnostics = function(args)
 			local sign = signs[level.name]
 			local hl = highlights[level.name]
 			if type(hl) == "string" and hl ~= "" then
-				table.insert(t, string.format(" %%#%s#%s%d%%#%s#", hl, sign, n, reset_highlight))
+				table.insert(t, string.format("%%#%s#%s%d%%#%s#", hl, sign, n, reset_highlight))
 			else
-				table.insert(t, " " .. sign .. n)
+				table.insert(t, sign .. n)
 			end
 		end
 	end
@@ -715,8 +723,10 @@ H.setup_config = function(config)
 	H.check_type("highlight_groups.lsp_progress", config.highlight_groups.lsp_progress, "string")
 	H.check_type("highlight_groups.lsp_progress_done", config.highlight_groups.lsp_progress_done, "string")
 	H.check_type("highlight_groups.diff", config.highlight_groups.diff, "table")
+	H.check_type("highlight_groups.diff.group", config.highlight_groups.diff.group, "string")
 	H.check_diff_map("highlight_groups.diff", config.highlight_groups.diff)
 	H.check_type("highlight_groups.diagnostics", config.highlight_groups.diagnostics, "table")
+	H.check_type("highlight_groups.diagnostics.group", config.highlight_groups.diagnostics.group, "string")
 	H.check_severity_map("highlight_groups.diagnostics", config.highlight_groups.diagnostics)
 	H.check_type("show_workspace_diagnostics", config.show_workspace_diagnostics, "boolean")
 
@@ -782,6 +792,8 @@ H.create_default_hl = function()
   set_default_hl('MiniStatuslineModeOther',      { link = 'IncSearch' })
 
   set_default_hl('MiniStatuslineDevinfo',          { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineDiff',             { link = 'StatusLine' })
+  set_default_hl('MiniStatuslineDiagnostics',      { link = 'StatusLine' })
   set_default_hl('MiniStatuslineFilename',         { link = 'StatusLineNC' })
   set_default_hl('MiniStatuslineFileinfo',         { link = 'StatusLine' })
   set_default_hl('MiniStatuslineLspProgress',      { link = 'DiagnosticInfo' })
@@ -840,10 +852,10 @@ H.default_content_active = function()
   H.use_icons = H.get_config().use_icons
   local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
   local git           = MiniStatusline.section_git({ trunc_width = 40 })
-  local diff          = MiniStatusline.section_diff({ trunc_width = 40, reset_highlight = hl_groups.devinfo })
-  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40, reset_highlight = hl_groups.devinfo })
+  local diff          = MiniStatusline.section_diff({ trunc_width = 40, reset_highlight = hl_groups.diff.group })
+  local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 40, reset_highlight = hl_groups.diagnostics.group })
   local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
-  local filename      = MiniStatusline.section_filename({ trunc_width = 140 })
+  local filename      = MiniStatusline.section_filename({ trunc_width = 120 })
   local fileinfo      = MiniStatusline.section_fileinfo({ trunc_width = 120 })
   local location      = MiniStatusline.section_location({ trunc_width = 75 })
   local search        = MiniStatusline.section_searchcount({ trunc_width = 75 })
@@ -853,13 +865,15 @@ H.default_content_active = function()
   -- correct padding with spaces between groups (accounts for 'missing'
   -- sections, etc.)
   return MiniStatusline.combine_groups({
-        { hl = mode_hl,            strings = { mode } },
-    { hl = hl_groups.filename,   strings = { git, diff } },
+        { hl = mode_hl,                      strings = { mode } },
+    { hl = hl_groups.filename,             strings = { git } },
+    { hl = hl_groups.diff.group,           strings = { diff } },
         '%<', -- Mark general truncate point
-    { hl = hl_groups.devinfo,  strings = {  lsp, diagnostics } },
-    '%=', -- End left alignment
-    { hl = hl_groups.fileinfo,  strings = { fileinfo } },
-    { hl = mode_hl,             strings = { search, location } },
+    { hl = hl_groups.devinfo,              strings = { lsp } },
+    { hl = hl_groups.diagnostics.group,    strings = { diagnostics } },
+        '%=', -- End left alignment
+    { hl = hl_groups.fileinfo,            strings = { fileinfo, filename } },
+    { hl = mode_hl,                       strings = { search, location } },
   })
 end
 
@@ -1263,7 +1277,7 @@ H.format_diff_summary = function(summary, signs, highlights, reset_highlight)
 		end
 	end
 
-	return #parts == 0 and summary or table.concat(parts, " ")
+	return #parts == 0 and summary or table.concat(parts, "")
 end
 
 H.get_filesize = function()
