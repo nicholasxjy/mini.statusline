@@ -866,10 +866,10 @@ H.default_content_active = function()
     { hl = hl_groups.filename,             strings = { git } },
     { hl = hl_groups.diff.group,           strings = { diff } },
         '%<', -- Mark general truncate point
-    { hl = hl_groups.devinfo,              strings = { lsp } },
+    { hl = hl_groups.devinfo,              strings = { filename, lsp } },
     { hl = hl_groups.diagnostics.group,    strings = { diagnostics } },
         '%=', -- End left alignment
-    { hl = hl_groups.fileinfo,            strings = { fileinfo, filename } },
+    { hl = hl_groups.fileinfo,            strings = { fileinfo } },
     { hl = mode_hl,                       strings = { search, location } },
   })
 end
