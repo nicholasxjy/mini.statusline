@@ -550,12 +550,14 @@ MiniStatusline.section_filename = function(args)
 	local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
 	local fullpath = bufname == "" and "[No Name]" or bufname
 	local is_truncated = MiniStatusline.is_truncated(args.trunc_width)
-	local shortened_path = is_truncated and vim.fn.pathshorten(relpath) or relpath
-	local path = is_truncated and shortened_path or fullpath
+	local compact_path = is_truncated and vim.fn.pathshorten(relpath) or relpath
+	local path = is_truncated and compact_path or fullpath
 	local max_width = is_truncated and H.filename_max_width.truncated or H.filename_max_width.default
 
 	if vim.fn.strdisplaywidth(path) > max_width then
-		path = H.shorten_middle(shortened_path, max_width)
+		-- Prefer compact relative path when shortening so more of the useful
+		-- directory and file name stays visible.
+		path = H.shorten_middle(compact_path, max_width)
 	end
 
 	return path:gsub("%%", "%%%%") .. "%m%r"
