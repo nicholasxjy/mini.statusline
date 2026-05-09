@@ -550,14 +550,12 @@ MiniStatusline.section_filename = function(args)
 	local relpath = bufname == "" and "[No Name]" or vim.fn.fnamemodify(bufname, ":.")
 	local fullpath = bufname == "" and "[No Name]" or bufname
 	local is_truncated = MiniStatusline.is_truncated(args.trunc_width)
-	local path = is_truncated and vim.fn.pathshorten(relpath) or fullpath
+	local shortened_path = is_truncated and vim.fn.pathshorten(relpath) or relpath
+	local path = is_truncated and shortened_path or fullpath
 	local max_width = is_truncated and H.filename_max_width.truncated or H.filename_max_width.default
 
 	if vim.fn.strdisplaywidth(path) > max_width then
-		-- Prefer relative path when shortening a non-truncated name so directory
-		-- context stays visible without spending width on absolute path prefix.
-		local source_path = is_truncated and path or relpath
-		path = H.shorten_middle(source_path, max_width)
+		path = H.shorten_middle(shortened_path, max_width)
 	end
 
 	return path:gsub("%%", "%%%%") .. "%m%r"
@@ -670,7 +668,8 @@ H.diagnostic_levels = {
 -- Diagnostic counts per buffer id
 H.diagnostic_counts = {}
 
--- Keep filename compact enough to leave room for diff and diagnostics sections.
+-- Keep filename compact enough to leave room for diff and diagnostics sections
+-- in common statusline layouts while still showing useful path context.
 H.filename_max_width = {
 	default = 60,
 	truncated = 30,
@@ -931,6 +930,7 @@ H.shorten_middle = function(text, max_width)
 		return "…"
 	end
 
+	-- Split into individual characters while keeping multi-byte glyphs intact.
 	local chars = vim.fn.split(text, "\\zs")
 	local left_max = math.floor((max_width - 1) / 2)
 	local right_max = max_width - 1 - left_max
