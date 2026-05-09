@@ -387,6 +387,7 @@ Return ~
 Section for file name
 
 Show full file name or relative in short output.
+Long paths are shortened in the middle to leave room for other sections.
 
 Short output is returned if window width is lower than `args.trunc_width`.
 

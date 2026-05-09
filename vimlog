@@ -1,0 +1,5 @@
+
+Reading viminfo file "/home/runner/.viminfo" info oldfiles
+                                                          Error detected while processing command line:
+E319: Sorry, the command is not available in this version: lua require('mini.statusline')
+Writing viminfo file "/home/runner/.viminfo"
